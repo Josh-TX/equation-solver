@@ -125,7 +125,6 @@ app.service("eqService", function(){
 					return eqObj.arr[i] == obj.name;
 				});
 				if (!symbol){
-					console.log("no symbol for " + eqObj.arr[i])
 					continue;
 				}
 				if (symbol.value.length == 0){
@@ -150,9 +149,6 @@ app.service("eqService", function(){
 		return values.pop();
 	}
 	this.compile = function(eqObj){
-		console.log("compiling " + JSON.stringify(eqObj))
-		console.log("str = " + typeof eqObj.str)
-		console.log
 		eqObj.arr = [];
 		if (!eqObj.symbols){
 			eqObj.symbols = []
@@ -167,7 +163,6 @@ app.service("eqService", function(){
 			if (i >= str.length){
 				break;
 			}
-			console.log(i + " : " + str.substring(i))
 			var match = /(^\d+(?:\.\d+)? *(?:E[-+]?\d+)?)/.exec(str.substring(i))
 			if (match){
 				var f = parseFloat(match[1]);
@@ -191,12 +186,11 @@ app.service("eqService", function(){
 				opstack.push(c);
 			}
 			else if (c == "^" || c == "L"){
-				console.log("pushing " + c)
 				opstack.push(c);
 				continue;
 			}
 			else if (c == "("){
-				if (i > 0 && str.charAt(i-1) != "+" && str.charAt(i-1) != "-" && str.charAt(i-1) != "*" && str.charAt(i-1) != "/" && str.charAt(i-1) != "^" && str.charAt(i-1) != "L"){
+				if (i > 0 && str.charAt(i-1) != "+" && str.charAt(i-1) != "-" && str.charAt(i-1) != "*" && str.charAt(i-1) != "/" && str.charAt(i-1) != "^" && str.charAt(i-1) != "L" && str.charAt(i-1) != " "){
 					opstack.push("*")
 				}
 				opstack.push(c);
@@ -231,18 +225,13 @@ app.service("eqService", function(){
 			eqObj.arr.push(opstack[opstack.length-1]);
 			opstack.pop();
 		}
-		//console.log("OLD: " + JSON.stringify(self.symbols))
-		//console.log("NEW: " + JSON.stringify(symbols))
 		if (differentSymbols(eqObj.symbols, symbols)){
-			console.log("different");
+			//console.log("different");
 			eqObj.symbols = symbols;
 		}
 		else {
-			console.log("Same")
+			//console.log("Same")
 		}
-		console.log("after " + JSON.stringify(eqObj))
-		//console.log("FINAL = " + JSON.stringify(self.symbols))
-		//alert(JSON.stringify(arr))
 	}
 	function differentSymbols(arr1, arr2){
 		if (arr1.length != arr2.length){
