@@ -1,0 +1,263 @@
+<html>
+<head>
+<title>Equation solver</title>
+<link rel="stylesheet" type="text/css" href="./bootstrap.min.css">
+<style>
+.inline {
+	display: inline-block;
+}
+</style>
+</head>
+<body ng-app="myApp">
+<div class="container" ng-controller="myController">
+	<h1>Equation Solver</h1>
+	<button class="btn btn-primary" ng-repeat="item in equations track by $index" 
+	ng-click="setEq($index)">{{item.title}}</button>
+	<hr>
+	<h3>{{eqObj.title}}</h3>
+	<p>{{eqObj.desc}}</p>
+	<div class="form-horizontal">
+		<div class="form-group">
+			<label class="col-sm-2 control-label">equation</label>
+			<div class="col-sm-10">
+				<input type="text" class="form-control" ng-model="eqObj.str" ng-change="eqService.compile(eqObj)"></input>
+			</div>
+		</div>
+		<div ng-repeat="symbol in eqObj.symbols track by $index" class="form-group">
+			<label class="col-sm-2 control-label">{{symbol.name}}</label>
+			<div class="col-sm-10">
+				<input type="text" class="form-control" ng-model="eqObj.symbols[$index].value"></input>
+			</div>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-sm-2">
+			<label class="pull-right">Result</label>
+		</div>
+		<div class="col-sm-10">
+			<p>{{eqService.eval(eqObj)}}</p>
+		</div>
+	</div>
+	<button class="btn btn-default" ng-click="show2=!show2">show objects</button>
+	<button class="btn btn-default" ng-click="eqObj.revert()">revert to original</button>
+	<h3 ng-if="show2">{{eqObj.arr}}</h3>
+	<h3 ng-if="show2">{{eqObj.symbols}}</h3>
+</div>
+
+<script src="./angular.min.js"></script>
+<script>
+var app = angular.module("myApp", [])
+
+app.controller("myController", function($scope, eqService) {
+	$scope.eqService = eqService
+	$scope.equations = [
+		getEqObj("any equation",
+		"",
+		""),
+		getEqObj("quadratic",
+		"(a*b*c*0)+(0-b+(b^2-4*a*c)^0.5)/(2*a)",
+		""),
+		getEqObj("plythagorian",
+		"(a^2 + b^2)^0.5",
+		"")
+	];
+	$scope.eqObj = $scope.equations[0];
+	$scope.setEq = function(index){
+		$scope.eqObj = $scope.equations[index];
+		$scope.eqObj.revert();
+	}
+	function getEqObj(title, equation, desc){
+		var eqObj = {};
+		var original = equation;
+		eqObj.title = title;
+		eqObj.desc = desc;
+		eqObj.original = equation;
+		eqObj.str = equation;
+		eqObj.show = false;
+		eqObj.revert = function(){
+			this.str = original;
+			$scope.eqService.compile(this);
+		}
+		$scope.eqService.compile(eqObj);
+		return eqObj;
+	}
+})
+
+
+
+app.service("eqService", function(){
+	var self = this;
+	this.eval = function(eqObj){
+		var values = [];
+		var opstack = [];
+		for (var i = 0; i < eqObj.arr.length; i++){
+			if (typeof eqObj.arr[i] == "number"){
+				values.push(eqObj.arr[i]);
+				continue;
+			}
+			if (eqObj.arr[i] == "+"){
+				var right = values.pop();
+				var left = values.pop();
+				values.push(left + right);
+			} else if (eqObj.arr[i] == "-"){
+				var right = values.pop();
+				var left = values.pop();
+				values.push(left - right);
+			} else if (eqObj.arr[i] == "*"){
+				var right = values.pop();
+				var left = values.pop();
+				values.push(left * right);
+			} else if (eqObj.arr[i] == "/"){
+				var right = values.pop();
+				var left = values.pop();
+				values.push(left / right);
+			}else if (eqObj.arr[i] == "^"){
+				var right = values.pop();
+				var left = values.pop();
+				values.push(Math.pow(left,right));
+			}
+			else if (eqObj.arr[i] == "L"){
+				var right = values.pop();
+				values.push(Math.log(right));
+			}
+			else {
+				var symbol = eqObj.symbols.find(function(obj){
+					return eqObj.arr[i] == obj.name;
+				});
+				if (!symbol){
+					console.log("no symbol for " + eqObj.arr[i])
+					continue;
+				}
+				if (symbol.value.length == 0){
+					values.push(0);
+					continue;
+				}
+				var match = /(^\d+(?:\.\d+)? *(?:E[-+]?\d+)?$)/.exec(symbol.value)
+				if (match){
+					var f = parseFloat(match[1]);
+					values.push(f);
+				} else {
+					var tempObj = {str: symbol.value}
+					self.compile(tempObj);
+					var num = self.eval(tempObj);
+					if (num == num){
+						values.push(num);
+					}
+				}
+
+			}
+		}
+		return values.pop();
+	}
+	this.compile = function(eqObj){
+		console.log("compiling " + JSON.stringify(eqObj))
+		console.log("str = " + typeof eqObj.str)
+		console.log
+		eqObj.arr = [];
+		if (!eqObj.symbols){
+			eqObj.symbols = []
+		}
+		var str = eqObj.str;
+		var symbols = [];
+		var opstack = [];
+		for (var i = 0; true; i++){
+			while (i < str.length && str.charAt(i) == " "){
+				i++;
+			}
+			if (i >= str.length){
+				break;
+			}
+			console.log(i + " : " + str.substring(i))
+			var match = /(^\d+(?:\.\d+)? *(?:E[-+]?\d+)?)/.exec(str.substring(i))
+			if (match){
+				var f = parseFloat(match[1]);
+				eqObj.arr.push(f);
+				i+= match[1].length - 1;
+				continue;
+			}
+			var c = str.charAt(i);
+			if (c == "+" || c == "-"){
+				while (opstack.length && opstack[opstack.length-1] != '('){
+					eqObj.arr.push(opstack[opstack.length-1]);
+					opstack.pop();
+				}
+				opstack.push(c);
+			}
+			else if (c == "*" || c == "/"){
+				while (opstack.length && (opstack[opstack.length-1] == '^' || opstack[opstack.length-1] == 'L' || opstack[opstack.length-1] == '*' || opstack[opstack.length-1] == '/')){
+					eqObj.arr.push(opstack[opstack.length-1]);
+					opstack.pop();
+				}
+				opstack.push(c);
+			}
+			else if (c == "^" || c == "L"){
+				console.log("pushing " + c)
+				opstack.push(c);
+				continue;
+			}
+			else if (c == "("){
+				if (i > 0 && str.charAt(i-1) != "+" && str.charAt(i-1) != "-" && str.charAt(i-1) != "*" && str.charAt(i-1) != "/" && str.charAt(i-1) != "^" && str.charAt(i-1) != "L"){
+					opstack.push("*")
+				}
+				opstack.push(c);
+			}
+			else if (c == ')'){
+				while (opstack.length > 1 && opstack[opstack.length-1] != '('){
+					eqObj.arr.push(opstack[opstack.length-1]);
+					opstack.pop();
+				}
+				opstack.pop();
+			}
+			var match = /(^[A-Za-z][A-Za-z0-9]*)/.exec(str.substring(i))
+			if (match){
+				//console.log(JSON.stringify(match))
+				eqObj.arr.push(match[1]);
+				var found = symbols.find(function(obj){
+					return obj.name == match[1];
+				});
+				if (found){
+					continue;
+				}
+				symbols.push({
+					name: match[1],
+					value: 0,
+				});
+				i+= match[1].length - 1;
+				continue;
+			}
+			
+		}//end for
+		while (opstack.length){
+			eqObj.arr.push(opstack[opstack.length-1]);
+			opstack.pop();
+		}
+		//console.log("OLD: " + JSON.stringify(self.symbols))
+		//console.log("NEW: " + JSON.stringify(symbols))
+		if (differentSymbols(eqObj.symbols, symbols)){
+			console.log("different");
+			eqObj.symbols = symbols;
+		}
+		else {
+			console.log("Same")
+		}
+		console.log("after " + JSON.stringify(eqObj))
+		//console.log("FINAL = " + JSON.stringify(self.symbols))
+		//alert(JSON.stringify(arr))
+	}
+	function differentSymbols(arr1, arr2){
+		if (arr1.length != arr2.length){
+			return true;
+		}
+		for (var i = 0; i < arr1.length; i++){
+			if (arr1[i].name != arr2[i].name){
+				return true;
+			}
+		}
+		return false;
+	}
+
+});
+
+</script>
+</body>
+</html>
